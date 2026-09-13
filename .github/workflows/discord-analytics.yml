@@ -1,0 +1,77 @@
+name: Update Discord Analytics
+
+on:
+  schedule:
+    # Runs every 6 hours. You can adjust this using cron syntax.
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Allows you to manually trigger the update for testing
+
+jobs:
+  update-discord:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch GitHub Repository Analytics
+        id: repo_stats
+        run: |
+          # Fetch total views and clones over the last 14 days
+          VIEWS_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com{{ github.repository }}/traffic/views")
+          CLONES_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://github.com{{ github.repository }}/traffic/clones")
+          
+          # Parse data (defaults to 0 if null)
+          TOTAL_VIEWS=$(echo "$VIEWS_JSON" | jq '.count // 0')
+          UNIQUE_VIEWS=$(echo "$VIEWS_JSON" | jq '.uniques // 0')
+          TOTAL_CLONES=$(echo "$CLONES_JSON" | jq '.count // 0')
+          UNIQUE_CLONES=$(echo "$CLONES_JSON" | jq '.uniques // 0')
+          
+          # Make data available to the next step
+          echo "views=$TOTAL_VIEWS" >> $GITHUB_OUTPUT
+          echo "u_views=$UNIQUE_VIEWS" >> $GITHUB_OUTPUT
+          echo "clones=$TOTAL_CLONES" >> $GITHUB_OUTPUT
+          echo "u_clones=$UNIQUE_CLONES" >> $GITHUB_OUTPUT
+
+      - name: Edit Discord Message
+        run: |
+          MESSAGE_ID="1548688876812505232"
+          
+          # Get current timestamp for the "Last Updated" field
+          UPDATED_AT=$(date -u +"%Y-%m-%d %H:%M UTC")
+          
+          # Construct the Discord Embed JSON payload
+          PAYLOAD=$(cat <<EOF
+          {
+            "embeds": [{
+              "title": "📊 ${{ github.event.repository.name }} Analytics Dashboard",
+              "description": "Live traffic statistics for the past 14 days.",
+              "color": 5814783,
+              "fields": [
+                {
+                  "name": "👀 Total Views (Unique)",
+                  "value": "${{ steps.repo_stats.outputs.views }} (${{ steps.repo_stats.outputs.u_views }})",
+                  "inline": true
+                },
+                {
+                  "name": "💾 Total Clones (Unique)",
+                  "value": "${{ steps.repo_stats.outputs.clones }} (${{ steps.repo_stats.outputs.u_clones }})",
+                  "inline": true
+                },
+                {
+                  "name": "⭐ Stars",
+                  "value": "${{ github.event.repository.stargazers_count }}",
+                  "inline": true
+                }
+              ],
+              "footer": {
+                "text": "Last Updated: $UPDATED_AT"
+              }
+            }]
+          }
+          EOF
+          )
+          
+          # Execute a PATCH request to Discord to overwrite the existing message
+          curl -H "Content-Type: application/json" \
+               -X PATCH \
+               -d "$PAYLOAD" \
+               "${{ secrets.DISCORD_WEBHOOK_URL }}/messages/$MESSAGE_ID"
