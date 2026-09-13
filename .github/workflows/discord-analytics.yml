@@ -15,13 +15,18 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
           # ⚠️ REMEMBER TO PASTE YOUR ACTUAL DISCORD MESSAGE ID BELOW
           DISCORD_MESSAGE_ID: "1234567890123456789"
+          # Using GitHub's built-in env variable to guarantee zero formatting errors
           REPO_NAME: ${{ github.repository }}
         run: |
           python3 -c "
           import os, urllib.request, json, datetime
 
-          headers = {'Authorization': f'token {os.environ[\"REPO_TOKEN\"]}'}
-          repo = os.environ[\"REPO_NAME\"]
+          headers = {
+              'Authorization': f'Bearer {os.environ[\"REPO_TOKEN\"].strip()}',
+              'Accept': 'application/vnd.github+json',
+              'X-GitHub-Api-Version': '2022-11-28'
+          }
+          repo = os.environ[\"REPO_NAME\"].strip()
 
           try:
               # 1. Fetch Views Data
@@ -66,8 +71,8 @@ jobs:
           }
 
           # Send PATCH request to Discord
-          msg_id = os.environ[\"DISCORD_MESSAGE_ID\"]
-          webhook_url = f'{os.environ[\"DISCORD_WEBHOOK\"]}/messages/{msg_id}'
+          msg_id = os.environ[\"DISCORD_MESSAGE_ID\"].strip()
+          webhook_url = f'{os.environ[\"DISCORD_WEBHOOK\"].strip()}/messages/{msg_id}'
           
           req_discord = urllib.request.Request(
               webhook_url, 
