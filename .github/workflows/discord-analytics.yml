@@ -16,5 +16,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           filename: github-analytics.png
+          config_output: png                # <-- Force the plugin to save as a PNG image
           base: header, traffic
           plugin_traffic: yes
