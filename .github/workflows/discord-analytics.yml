@@ -9,72 +9,77 @@ jobs:
   update-discord:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch GitHub Repository Analytics
-        id: repo_stats
+      - name: Fetch Analytics and Update Discord
+        env:
+          REPO_TOKEN: ${{ secrets.REPO_ANALYTICS_TOKEN }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # ⚠️ REMEMBER TO PASTE YOUR ACTUAL DISCORD MESSAGE ID BELOW
+          DISCORD_MESSAGE_ID: "1234567890123456789"
+          REPO_NAME: ${{ github.repository }}
         run: |
-          # Fetch views and clones data using the custom Personal Access Token
-          VIEWS_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/traffic/views")
-          CLONES_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/traffic/clones")
-          
-          # Fetch general repo info to get an accurate stargazers count safely
-          REPO_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}")
-          
-          # Parse data and ensure 0 values if empty
-          TOTAL_VIEWS=$(echo "$VIEWS_JSON" | jq '.count // 0')
-          UNIQUE_VIEWS=$(echo "$VIEWS_JSON" | jq '.uniques // 0')
-          TOTAL_CLONES=$(echo "$CLONES_JSON" | jq '.count // 0')
-          UNIQUE_CLONES=$(echo "$CLONES_JSON" | jq '.uniques // 0')
-          STARS=$(echo "$REPO_JSON" | jq '.stargazers_count // 0')
-          
-          # Export outputs
-          echo "views=$TOTAL_VIEWS" >> $GITHUB_OUTPUT
-          echo "u_views=$UNIQUE_VIEWS" >> $GITHUB_OUTPUT
-          echo "clones=$TOTAL_CLONES" >> $GITHUB_OUTPUT
-          echo "u_clones=$UNIQUE_CLONES" >> $GITHUB_OUTPUT
-          echo "stars=$STARS" >> $GITHUB_OUTPUT
+          python3 -c "
+          import os, urllib.request, json, datetime
 
-      - name: Edit Discord Message
-        run: |
-          # ⚠️ REMEMBER TO REPLACE THIS WITH YOUR ACTUAL DISCORD MESSAGE ID
-          MESSAGE_ID="1234567890123456789"
-          
-          UPDATED_AT=$(date -u +"%Y-%m-%d %H:%M UTC")
-          
-          PAYLOAD=$(cat <<EOF
-          {
-            "embeds": [{
-              "title": "📊 Analytics Dashboard",
-              "description": "Live traffic statistics for the past 14 days.",
-              "color": 5814783,
-              "fields": [
-                {
-                  "name": "👀 Total Views (Unique)",
-                  "value": "${{ steps.repo_stats.outputs.views }} (${{ steps.repo_stats.outputs.u_views }})",
-                  "inline": true
-                },
-                {
-                  "name": "💾 Total Clones (Unique)",
-                  "value": "${{ steps.repo_stats.outputs.clones }} (${{ steps.repo_stats.outputs.u_clones }})",
-                  "inline": true
-                },
-                {
-                  "name": "⭐ Stars",
-                  "value": "${{ steps.repo_stats.outputs.stars }}",
-                  "inline": true
-                }
-              ],
-              "footer": {
-                "text": "Last Updated: $UPDATED_AT"
-              }
-            }]
+          headers = {'Authorization': f'token {os.environ[\"REPO_TOKEN\"]}'}
+          repo = os.environ[\"REPO_NAME\"]
+
+          try:
+              # 1. Fetch Views Data
+              req_views = urllib.request.Request(f'https://github.com{repo}/traffic/views', headers=headers)
+              views_data = json.loads(urllib.request.urlopen(req_views).read().decode())
+              
+              # 2. Fetch Clones Data
+              req_clones = urllib.request.Request(f'https://github.com{repo}/traffic/clones', headers=headers)
+              clones_data = json.loads(urllib.request.urlopen(req_clones).read().decode())
+              
+              # 3. Fetch Stars Data
+              req_repo = urllib.request.Request(f'https://github.com{repo}', headers=headers)
+              general_data = json.loads(urllib.request.urlopen(req_repo).read().decode())
+          except Exception as e:
+              print(f'Error fetching GitHub API: {e}')
+              exit(1)
+
+          # Extract stats safely
+          views = views_data.get('count', 0)
+          u_views = views_data.get('uniques', 0)
+          clones = clones_data.get('count', 0)
+          u_clones = clones_data.get('uniques', 0)
+          stars = general_data.get('stargazers_count', 0)
+          repo_title = repo.split('/')[-1]
+
+          # Timestamp
+          now = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')
+
+          # Build clean Discord Payload
+          payload = {
+              'embeds': [{
+                  'title': f'📊 {repo_title} Analytics Dashboard',
+                  'description': 'Live traffic statistics for the past 14 days.',
+                  'color': 5814783,
+                  'fields': [
+                      {'name': '👀 Total Views (Unique)', 'value': f'{views} ({u_views})', 'inline': True},
+                      {'name': '💾 Total Clones (Unique)', 'value': f'{clones} ({u_clones})', 'inline': True},
+                      {'name': '⭐ Stars', 'value': str(stars), 'inline': True}
+                  ],
+                  'footer': {'text': f'Last Updated: {now}'}
+              }]
           }
-          EOF
-          )
+
+          # Send PATCH request to Discord
+          msg_id = os.environ[\"DISCORD_MESSAGE_ID\"]
+          webhook_url = f'{os.environ[\"DISCORD_WEBHOOK\"]}/messages/{msg_id}'
           
-          curl -H "Content-Type: application/json" \
-               -X PATCH \
-               -d "$PAYLOAD" \
-               "${{ secrets.DISCORD_WEBHOOK_URL }}/messages/$MESSAGE_ID"
+          req_discord = urllib.request.Request(
+              webhook_url, 
+              data=json.dumps(payload).encode('utf-8'),
+              headers={'Content-Type': 'application/json'},
+              method='PATCH'
+          )
+
+          try:
+              urllib.request.urlopen(req_discord)
+              print('Discord message updated successfully!')
+          except Exception as e:
+              print(f'Error updating Discord Webhook: {e}')
+              exit(1)
+          "
