@@ -6,22 +6,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  github-metrics:
+  update-dashboard:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Generate Analytics Image
+      - name: Fetch Repository Analytics
+        id: metrics
         uses: lowlighter/metrics@latest
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          filename: github-analytics.png
-          config_output: png
-          
-          # TARGET THE SPECIFIC REPOSITORY AND DISABLE GENERAL ACCOUNT STATS
           user: prismaudio-official
           repo: spectral-limiter
-          base: traffic            # Only collect views, clones, and traffic data
           
-          # ENABLE TRAFFIC GRAPHS
+          # Force the plugin to output raw text in the action variables
+          config_output: json
+          output_action: none
+          
+          base: traffic
           plugin_traffic: yes
+
+      - name: Push Analytics To Discord
+        uses: bodylution/discord-webhook-action@v1
+        with:
+          # Pulls the Webhook URL you saved in your secrets
+          url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # ⚠️ REPLACE THE DUMMY ID BELOW WITH YOUR ACTUAL DISCORD MESSAGE ID
+          message_id: "1548688876812505232"
+          avatar_url: "https://github.com"
+          username: "PRSM Analytics"
+          embeds: |
+            [{
+              "title": "📊 spectral-limiter Analytics Dashboard",
+              "description": "Live repository traffic data for the past 14 days.",
+              "color": 5814783,
+              "fields": [
+                {
+                  "name": "👀 Total Views",
+                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.views.count }}",
+                  "inline": true
+                },
+                {
+                  "name": "👤 Unique Visitors",
+                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.views.uniques }}",
+                  "inline": true
+                },
+                {
+                  "name": "💾 Total Clones",
+                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.clones.count }}",
+                  "inline": true
+                }
+              ],
+              "footer": {
+                "text": "Automatically updates every 6 hours"
+              }
+            }]
