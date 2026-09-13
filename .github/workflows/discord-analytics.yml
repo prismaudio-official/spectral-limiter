@@ -17,7 +17,7 @@ jobs:
           user: prismaudio-official
           repo: spectral-limiter
           
-          # Force the plugin to output raw text in the action variables
+          # Output data internally inside the runner
           config_output: json
           output_action: none
           
@@ -25,37 +25,25 @@ jobs:
           plugin_traffic: yes
 
       - name: Push Analytics To Discord
-        uses: bodylution/discord-webhook-action@v1
+        uses: tsickert/discord-webhook@v6.0.0
         with:
-          # Pulls the Webhook URL you saved in your secrets
-          url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Pulls the Webhook URL from your GitHub secrets
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           # ⚠️ REPLACE THE DUMMY ID BELOW WITH YOUR ACTUAL DISCORD MESSAGE ID
-          message_id: "1548688876812505232"
-          avatar_url: "https://github.com"
+          message-id: "1234567890123456789"
+          avatar-url: "https://github.com"
           username: "PRSM Analytics"
-          embeds: |
-            [{
-              "title": "📊 spectral-limiter Analytics Dashboard",
-              "description": "Live repository traffic data for the past 14 days.",
-              "color": 5814783,
-              "fields": [
-                {
-                  "name": "👀 Total Views",
-                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.views.count }}",
-                  "inline": true
-                },
-                {
-                  "name": "👤 Unique Visitors",
-                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.views.uniques }}",
-                  "inline": true
-                },
-                {
-                  "name": "💾 Total Clones",
-                  "value": "${{ fromJson(steps.metrics.outputs.data).traffic.clones.count }}",
-                  "inline": true
-                }
-              ],
-              "footer": {
-                "text": "Automatically updates every 6 hours"
-              }
-            }]
+          embed-title: "📊 spectral-limiter Analytics Dashboard"
+          embed-description: "Live repository traffic data for the past 14 days."
+          embed-color: 5814783
+          # Format data cleanly into individual dashboard fields
+          embed-f-1-name: "👀 Total Views"
+          embed-f-1-value: "${{ fromJson(steps.metrics.outputs.data).traffic.views.count }}"
+          embed-f-1-inline: true
+          embed-f-2-name: "👤 Unique Visitors"
+          embed-f-2-value: "${{ fromJson(steps.metrics.outputs.data).traffic.views.uniques }}"
+          embed-f-2-inline: true
+          embed-f-3-name: "💾 Total Clones"
+          embed-f-3-value: "${{ fromJson(steps.metrics.outputs.data).traffic.clones.count }}"
+          embed-f-3-inline: true
+          embed-footer-text: "Automatically updates every 6 hours"
