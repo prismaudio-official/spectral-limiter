@@ -17,5 +17,11 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           filename: github-analytics.png
           config_output: png
-          base: header, traffic
+          
+          # TARGET THE SPECIFIC REPOSITORY AND DISABLE GENERAL ACCOUNT STATS
+          user: prismaudio-official
+          repo: spectral-limiter
+          base: traffic            # Only collect views, clones, and traffic data
+          
+          # ENABLE TRAFFIC GRAPHS
           plugin_traffic: yes
