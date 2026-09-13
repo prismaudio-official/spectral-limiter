@@ -15,6 +15,6 @@ jobs:
         uses: lowlighter/metrics@latest
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          filename: github-analytics.svg
+          filename: github-analytics.png
           base: header, traffic
           plugin_traffic: yes
