@@ -5,10 +5,6 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch: 
 
-# FIX 1: Grant permissions to access repository traffic metrics
-permissions:
-  contents: read
-
 jobs:
   update-discord:
     runs-on: ubuntu-latest
@@ -16,15 +12,15 @@ jobs:
       - name: Fetch GitHub Repository Analytics
         id: repo_stats
         run: |
-          # Fetch views and clones data
-          VIEWS_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://github.com{{ github.repository }}/traffic/views")
-          CLONES_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://github.com{{ github.repository }}/traffic/clones")
+          # Fetch views and clones data using the custom Personal Access Token
+          VIEWS_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/traffic/views")
+          CLONES_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/traffic/clones")
           
           # Fetch general repo info to get an accurate stargazers count safely
-          REPO_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://github.com{{ github.repository }}")
+          REPO_JSON=$(curl -s -H "Authorization: token ${{ secrets.REPO_ANALYTICS_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}")
           
           # Parse data and ensure 0 values if empty
           TOTAL_VIEWS=$(echo "$VIEWS_JSON" | jq '.count // 0')
