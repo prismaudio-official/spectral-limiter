@@ -30,7 +30,7 @@ jobs:
           # Pulls the Webhook URL from your GitHub secrets
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           # ⚠️ REPLACE THE DUMMY ID BELOW WITH YOUR ACTUAL DISCORD MESSAGE ID
-          message-id: "1234567890123456789"
+          message-id: "1548688876812505232"
           avatar-url: "https://github.com"
           username: "PRSM Analytics"
           embed-title: "📊 spectral-limiter Analytics Dashboard"
