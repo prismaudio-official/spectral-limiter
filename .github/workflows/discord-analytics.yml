@@ -14,7 +14,7 @@ jobs:
           REPO_TOKEN: ${{ secrets.REPO_ANALYTICS_TOKEN }}
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
           # ⚠️ REMEMBER TO PASTE YOUR ACTUAL DISCORD MESSAGE ID BELOW
-          DISCORD_MESSAGE_ID: "1234567890123456789"
+          DISCORD_MESSAGE_ID: "1548688876812505232"
           # Using GitHub's built-in env variable to guarantee zero formatting errors
           REPO_NAME: ${{ github.repository }}
         run: |
